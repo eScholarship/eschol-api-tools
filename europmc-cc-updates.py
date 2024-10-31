@@ -2,12 +2,13 @@ import datetime
 import csv
 from pprint import pprint as pp
 import requests
+from time import sleep
 
 import program_setup
 
 # Batch vars
 last_index_file = "last_index_processed.txt"
-batch_size = 1000
+batch_size = 5
 throttle_secs = 20
 
 
@@ -49,8 +50,7 @@ def update_eschol_api(args, config, input_items, current_index):
 
     eschol_api = program_setup.get_eschol_api_connection(args.connection, config)
 
-    test_query = 'query { item(id:"ark:/13030/qt001027fb") { id, title, rights } }'
-    test_query_with_vars = 'query getItem($input_id: ID!){ item(id:$input_id) { id, title, rights } }'
+    test_query = 'query getItem($input_id: ID!){ item(id:$input_id) { id, title, rights } }'
     test_vars = {'input_id': 'ark:/13030/qt001027fb'}
 
     mutation = "mutation updateRights($input: UpdateRightsInput!){ updateRights(input: $input) { message } }"
@@ -63,15 +63,17 @@ def update_eschol_api(args, config, input_items, current_index):
         headers, cookies = {}, {}
 
     for item in input_items:
+        sleep(throttle_secs)
         print(f"Submitting: {item['escholID']}")
 
         mutation_vars = get_mutation_vars(item)
+        test_vars = get_test_vars(item)
 
         response = requests.post(
             url=eschol_api['url'],
             headers=headers,
             cookies=cookies,
-            json={"query": test_query_with_vars,
+            json={"query": test_query,
                   "variables": test_vars}
         )
 
@@ -87,9 +89,7 @@ def update_eschol_api(args, config, input_items, current_index):
 
         current_index += 1
         with open(last_index_file, "w") as lif:
-            lif.write(current_index)
-
-        exit()
+            lif.write(str(current_index))
 
 
 def get_mutation_vars(item):
@@ -102,11 +102,16 @@ def get_mutation_vars(item):
     return item_vars
 
 
+def get_test_vars(item):
+    item_vars = {'input_id': f"ark:/13030/{item['escholID']}"}
+    return item_vars
+
+
 # ================================
 # LOGGING
 run_time = datetime.datetime.now().replace(microsecond=0).isoformat()
 log_file = f"output/europmc-cc-updates-{run_time}.csv"
-log_fields = ["escholID", "elementsID", "epmc_med_id", "epmc_api_licence", "response_code", "submission_index"]
+log_fields = ["escholID", "elemID", "epmc_med_id", "epmc_api_licence", "response_code", "submission_index"]
 
 
 def create_log():
@@ -116,9 +121,11 @@ def create_log():
 
 
 def write_log_row(lr):
+    pp(lr)
+    log_dict = {key: lr[key] for key in lr.keys() if key in log_fields}
     with open(log_file, 'a') as outfile:
         writer = csv.DictWriter(outfile, fieldnames=log_fields)
-        writer.writerow(lr)
+        writer.writerow(log_dict)
 
 
 # ================================
