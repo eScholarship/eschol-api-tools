@@ -34,7 +34,7 @@ def get_config():
 
 def get_eschol_api_connection(con, config):
     eschol_api = {
-        'url':      config['ESCHOL_API_URL_' + con] + "/graphql/",
+        'url':      config['ESCHOL_API_URL_' + con] + "/graphql",
         'priv_key': config['ESCHOL_API_PRIV_KEY_' + con]}
 
     if con == 'QA' or con == 'DEV':
