@@ -51,8 +51,6 @@ def update_eschol_api(args, config, input_items, current_index):
     eschol_api = program_setup.get_eschol_api_connection(args.connection, config)
 
     test_query = 'query getItem($input_id: ID!){ item(id:$input_id) { id, title, rights } }'
-    test_vars = {'input_id': 'ark:/13030/qt001027fb'}
-
     mutation = "mutation updateRights($input: UpdateRightsInput!){ updateRights(input: $input) { message } }"
 
     # Set cookies and headers
@@ -66,20 +64,25 @@ def update_eschol_api(args, config, input_items, current_index):
         sleep(throttle_secs)
         print(f"Submitting: {item['escholID']}")
 
-        mutation_vars = get_mutation_vars(item)
-        test_vars = get_test_vars(item)
+        # Set the query and vars
+        if args.test_mode:
+            send_query = test_query
+            send_vars = get_test_vars(item)
+        else:
+            send_query = mutation
+            send_vars = get_mutation_vars(item)
 
+        # Send 'em
         response = requests.post(
             url=eschol_api['url'],
             headers=headers,
             cookies=cookies,
-            json={"query": test_query,
-                  "variables": test_vars}
-        )
+            json={"query": send_query,
+                  "variables": send_vars})
 
         # Print response
-        print(response.status_code)
-        print(response.reason)
+        print(f"Code: {response.status_code}")
+        print(f"Reason: {response.reason}")
         print(response.json())
 
         # Logging
@@ -121,7 +124,6 @@ def create_log():
 
 
 def write_log_row(lr):
-    pp(lr)
     log_dict = {key: lr[key] for key in lr.keys() if key in log_fields}
     with open(log_file, 'a') as outfile:
         writer = csv.DictWriter(outfile, fieldnames=log_fields)
