@@ -1,15 +1,14 @@
 import datetime
 import csv
-from pprint import pprint as pp
 import requests
 from time import sleep
 
 import program_setup
 
 # Batch vars
-last_index_file = "last_index_processed.txt"
+last_index_file = "batch_continue_index.txt"
 batch_size = 5
-throttle_secs = 20
+throttle_secs = 4
 
 
 # ================================
@@ -19,7 +18,7 @@ def main():
     config = program_setup.get_config()
 
     # Get and prep input
-    input_items = list(csv.DictReader(open(args.input_file)))
+    input_items = list(csv.DictReader(open(args.input_file, encoding='utf-8-sig')))
     prep_input_data(input_items)
 
     # Determine the start and end indexes
@@ -33,39 +32,36 @@ def main():
     # loop the data, send reqs:
     update_eschol_api(args, config, input_items, start_index)
 
-    print("Batch finished. Exiting.")
+    print("\nBatch finished. Exiting.")
 
 
 # Quick tool for adding CC licence strings
 def prep_input_data(input_items):
     # Remove input data without CC values
-    input_items = [i for i in input_items
-                   if i['epmc_api_licence'] is not None
-                   and i['epmc_api_licence'] != 'cc0']
-
+    input_items = [i for i in input_items if i['epmc_api_licence'] is not None]
     return input_items
 
 
 def update_eschol_api(args, config, input_items, current_index):
 
+    # Get eschol API connection based on -c arg
     eschol_api = program_setup.get_eschol_api_connection(args.connection, config)
 
+    # Set up the query; input vars are constructed below.
     test_query = 'query getItem($input_id: ID!){ item(id:$input_id) { id, title, rights } }'
     mutation = "mutation updateRights($input: UpdateRightsInput!){ updateRights(input: $input) { message } }"
 
     # Set cookies and headers
-    if args.connection == 'QA':
+    if args.connection == 'QA' or args.connection == 'DEV':
         cookies = dict(ACCESS_COOKIE=eschol_api['cookie'])
-        headers = dict(Priviliged=eschol_api['priv_key'])
+        headers = dict(PRIVILEGED=eschol_api['priv_key'])
     else:
         headers, cookies = {}, {}
 
-    print(headers)
-    print(cookies)
-
+    # Loop the input, send the reqs.
     for item in input_items:
-        # sleep(throttle_secs)
-        print(f"Submitting: {item['escholID']}")
+        sleep(throttle_secs)
+        print(f"\nSubmitting: {item['escholID']}")
 
         # Set the query and vars
         if args.test_mode:
@@ -75,8 +71,7 @@ def update_eschol_api(args, config, input_items, current_index):
             send_query = mutation
             send_vars = get_mutation_vars(item)
 
-        print(eschol_api['url'])
-        # Send 'em
+        # Send the req
         response = requests.post(
             url=eschol_api['url'],
             headers=headers,
@@ -85,10 +80,11 @@ def update_eschol_api(args, config, input_items, current_index):
                   "variables": send_vars})
 
         # Print response
-        print(f"Code: {response.status_code}")
-        print(f"Reason: {response.reason}")
-        if response.status_code == 200:
-            print(response.json())
+        print(f"Response: {response.status_code} -- {response.reason}")
+        if response.status_code != 200:
+            print("Stack trace:")
+            print(response.text)
+            print("----------------------------------------")
 
         # Logging
         item.update({'response_code': response.status_code,
@@ -101,12 +97,17 @@ def update_eschol_api(args, config, input_items, current_index):
 
 
 def get_mutation_vars(item):
+    rights_url = "https://creativecommons.org/publicdomain/zero/1.0/" \
+        if item['epmc_api_licence'] == 'cc0' \
+        else f"https://creativecommons.org/licenses/{item['epmc_api_licence'][3:]}/4.0/"
+
     item_vars = {
         "input": {
             "id": f"ark:/13030/{item['escholID']}",
-            "rights": f"https://creativecommons.org/licenses/{item['epmc_api_licence'][3:]}/4.0/"
+            "rights": rights_url
         }
     }
+
     return item_vars
 
 
@@ -119,7 +120,8 @@ def get_test_vars(item):
 # LOGGING
 run_time = datetime.datetime.now().replace(microsecond=0).isoformat()
 log_file = f"output/europmc-cc-updates-{run_time}.csv"
-log_fields = ["escholID", "elemID", "epmc_med_id", "epmc_api_licence", "response_code", "submission_index"]
+log_fields = ["escholID", "elemID", "epmc_med_id",
+              "epmc_api_licence", "response_code", "submission_index"]
 
 
 def create_log():

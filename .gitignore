@@ -5,4 +5,4 @@ input/*
 output/*
 __pycache__/
 venv/
-last_index_processed.txt
+batch_continue_index.txt
