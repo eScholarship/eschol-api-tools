@@ -60,8 +60,11 @@ def update_eschol_api(args, config, input_items, current_index):
     else:
         headers, cookies = {}, {}
 
+    print(headers)
+    print(cookies)
+
     for item in input_items:
-        sleep(throttle_secs)
+        # sleep(throttle_secs)
         print(f"Submitting: {item['escholID']}")
 
         # Set the query and vars
@@ -72,6 +75,7 @@ def update_eschol_api(args, config, input_items, current_index):
             send_query = mutation
             send_vars = get_mutation_vars(item)
 
+        print(eschol_api['url'])
         # Send 'em
         response = requests.post(
             url=eschol_api['url'],
@@ -83,7 +87,8 @@ def update_eschol_api(args, config, input_items, current_index):
         # Print response
         print(f"Code: {response.status_code}")
         print(f"Reason: {response.reason}")
-        print(response.json())
+        if response.status_code == 200:
+            print(response.json())
 
         # Logging
         item.update({'response_code': response.status_code,
