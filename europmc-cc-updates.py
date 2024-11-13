@@ -39,6 +39,7 @@ def main():
 def prep_input_data(input_items):
     # Remove input data without CC values
     input_items = [i for i in input_items if i['epmc_api_licence'] is not None]
+
     return input_items
 
 
@@ -52,7 +53,7 @@ def update_eschol_api(args, config, input_items, current_index):
     mutation = "mutation updateRights($input: UpdateRightsInput!){ updateRights(input: $input) { message } }"
 
     # Set cookies and headers
-    if args.connection == 'QA' or args.connection == 'DEV':
+    if args.connection == 'QA':
         cookies = dict(ACCESS_COOKIE=eschol_api['cookie'])
         headers = dict(PRIVILEGED=eschol_api['priv_key'])
     else:
@@ -82,7 +83,6 @@ def update_eschol_api(args, config, input_items, current_index):
         # Print response
         print(f"Response: {response.status_code} -- {response.reason}")
         if response.status_code != 200:
-            print("Stack trace:")
             print(response.text)
             print("----------------------------------------")
 
