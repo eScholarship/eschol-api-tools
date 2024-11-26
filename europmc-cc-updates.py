@@ -7,8 +7,8 @@ import program_setup
 
 # Batch vars
 last_index_file = "batch_continue_index.txt"
-batch_size = 5
-throttle_secs = 4
+batch_size = 1
+throttle_secs = 2
 
 
 # ================================
@@ -39,6 +39,7 @@ def main():
 def prep_input_data(input_items):
     # Remove input data without CC values
     input_items = [i for i in input_items if i['epmc_api_licence'] is not None]
+    input_items = sorted(input_items, key=lambda x: x['elemID'])
 
     return input_items
 
@@ -53,11 +54,9 @@ def update_eschol_api(args, config, input_items, current_index):
     mutation = "mutation updateRights($input: UpdateRightsInput!){ updateRights(input: $input) { message } }"
 
     # Set cookies and headers
-    if args.connection == 'QA':
-        cookies = dict(ACCESS_COOKIE=eschol_api['cookie'])
-        headers = dict(PRIVILEGED=eschol_api['priv_key'])
-    else:
-        headers, cookies = {}, {}
+    headers = dict(PRIVILEGED=eschol_api['priv_key'])
+    cookies = dict(ACCESS_COOKIE=eschol_api['cookie']) \
+        if args.connection == 'qa' else {}
 
     # Loop the input, send the reqs.
     for item in input_items:

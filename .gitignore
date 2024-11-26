@@ -6,3 +6,4 @@ output/*
 __pycache__/
 venv/
 batch_continue_index.txt
+add-eschol-ccs-to-full-list.py
