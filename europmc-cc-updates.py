@@ -7,7 +7,7 @@ import program_setup
 
 # Batch vars
 last_index_file = "batch_continue_index.txt"
-batch_size = 1
+batch_size = 4
 throttle_secs = 2
 
 
@@ -81,6 +81,7 @@ def update_eschol_api(args, config, input_items, current_index):
 
         # Print response
         print(f"Response: {response.status_code} -- {response.reason}")
+        print(response)
         if response.status_code != 200:
             print(response.text)
             print("----------------------------------------")
